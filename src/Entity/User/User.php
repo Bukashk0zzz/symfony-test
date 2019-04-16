@@ -38,7 +38,7 @@ class User implements UserInterface, \Serializable
     protected $id;
 
     /**
-     * @ORM\Column(type="string", length=254, nullable=true)
+     * @ORM\Column(type="string", length=255, nullable=true)
      *
      * @Filter("StripTags")
      * @Filter("StringTrim")
