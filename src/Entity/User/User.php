@@ -31,7 +31,7 @@ class User implements UserInterface
     protected $id;
 
     /**
-     * @ORM\Column(type="string", length=255, nullable=false)
+     * @ORM\Column(type="string", length=64, nullable=false)
      *
      * @Assert\Email(groups={"Edit", "Login", "Restore"})
      * @Assert\NotBlank(groups={"Edit", "Login", "Restore"})
@@ -74,7 +74,7 @@ class User implements UserInterface
     protected $active = true;
 
     /**
-     * @ORM\Column(type="string", unique=true, nullable=false)
+     * @ORM\Column(type="string", unique=true, nullable=false, length=64)
      *
      * @var string
      */
