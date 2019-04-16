@@ -2,7 +2,13 @@
 
 namespace App\Entity\User;
 
+use Bukashk0zzz\FilterBundle\Annotation\FilterAnnotation as Filter;
 use Doctrine\ORM\Mapping as ORM;
+use Gedmo\Timestampable\Traits\TimestampableEntity;
+use JMS\Serializer\Annotation as JMS;
+use libphonenumber\PhoneNumber;
+use Misd\PhoneNumberBundle\Validator\Constraints\PhoneNumber as AssertPhoneNumber;
+use Swagger\Annotations as SWG;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -18,8 +24,9 @@ use Symfony\Component\Validator\Constraints as Assert;
  *     groups={"Default"}
  * )
  */
-class User implements UserInterface
+class User implements UserInterface, \Serializable
 {
+    use TimestampableEntity;
 
     /**
      * @ORM\Id()
@@ -31,14 +38,52 @@ class User implements UserInterface
     protected $id;
 
     /**
-     * @ORM\Column(type="string", length=64, nullable=false)
+     * @ORM\Column(type="string", length=254, nullable=true)
+     *
+     * @Filter("StripTags")
+     * @Filter("StringTrim")
+     * @Filter("StripNewlines")
+     *
+     * @Assert\NotBlank(groups={"Edit"})
+     * @Assert\Length(
+     *     min=2,
+     *     max=140,
+     *     groups={"Edit"}
+     * )
+     *
+     * @var string|null
+     */
+    protected $name;
+
+    /**
+     * @ORM\Column(type="string", length=255, nullable=false)
+     *
+     * @Filter("StripTags")
+     * @Filter("StringTrim")
+     * @Filter("StripNewlines")
      *
      * @Assert\Email(groups={"Edit", "Login", "Restore"})
      * @Assert\NotBlank(groups={"Edit", "Login", "Restore"})
      *
+     * @JMS\Groups({"Default"})
+     *
      * @var string
      */
     protected $username;
+
+    /**
+     * @ORM\Column(type="phone_number", nullable=true)
+     *
+     * @Assert\NotBlank(groups={"Edit"})
+     * @AssertPhoneNumber(groups={"Edit"})
+     *
+     * @JMS\Type("libphonenumber\PhoneNumber")
+     *
+     * @SWG\Property(type="string")
+     *
+     * @var PhoneNumber|null
+     */
+    protected $phone;
 
     /**
      * @Assert\NotBlank(groups={"Login", "ChangePassword", "CreatePassword"})
@@ -47,6 +92,7 @@ class User implements UserInterface
      *     max=64,
      *     groups={"Login", "ChangePassword", "CreatePassword"}
      * )
+     * @JMS\Exclude()
      *
      * @var string|null
      */
@@ -54,6 +100,8 @@ class User implements UserInterface
 
     /**
      * @ORM\Column(type="string", length=64, nullable=true)
+     *
+     * @JMS\Exclude()
      *
      * @var string|null
      */
@@ -76,9 +124,18 @@ class User implements UserInterface
     /**
      * @ORM\Column(type="string", unique=true, nullable=false, length=64)
      *
+     * @JMS\Groups({"UserPrivate"})
+     *
      * @var string
      */
     protected $apiKey;
+
+    /**
+     * @ORM\Column(type="datetime", nullable=true)
+     *
+     * @var \DateTime|null
+     */
+    protected $lastActive;
 
     /**
      * User constructor.
@@ -88,6 +145,7 @@ class User implements UserInterface
         $this->updateApiKey();
         $this->plainPassword = $this->getApiKey();
         $this->setRoles(['ROLE_USER']);
+        $this->lastActive = new \DateTime();
     }
 
     /**
@@ -95,7 +153,7 @@ class User implements UserInterface
      */
     public function __toString(): string
     {
-        return (string) $this->getUsername();
+        return (string) ($this->getName() ?: $this->getUsername());
     }
 
     /**
@@ -115,6 +173,42 @@ class User implements UserInterface
     {
         return null;
     }
+
+    // @codingStandardsIgnoreStart
+
+    /**
+     * @return string
+     *
+     * @see \Serializable::serialize()
+     */
+    public function serialize(): ?string
+    {
+        return \serialize([
+            $this->id,
+            $this->username,
+            $this->password,
+            $this->active,
+        ]);
+    }
+
+    /**
+     * @param string|null $serialized
+     *
+     * @return void
+     */
+    public function unserialize($serialized): void
+    {
+        /** @noinspection UnserializeExploitsInspection */
+        [
+            $this->id,
+            $this->username,
+            $this->password,
+            $this->active,
+        ] = \unserialize($serialized);
+    }
+
+    // @codingStandardsIgnoreEnd
+
     /**
      * Erase Credentials
      *
@@ -273,5 +367,65 @@ class User implements UserInterface
     public function getApiKey(): ?string
     {
         return $this->apiKey;
+    }
+
+    /**
+     * @param string|null $name
+     *
+     * @return User
+     */
+    public function setName(?string $name): self
+    {
+        $this->name = $name;
+
+        return $this;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    /**
+     * @return PhoneNumber|null
+     */
+    public function getPhone(): ?PhoneNumber
+    {
+        return $this->phone;
+    }
+
+    /**
+     * @param PhoneNumber|null $phone
+     *
+     * @return User
+     */
+    public function setPhone(?PhoneNumber $phone): self
+    {
+        $this->phone = $phone;
+
+        return $this;
+    }
+
+    /**
+     * @param \DateTime|null $lastActive
+     *
+     * @return User
+     */
+    public function setLastActive(?\DateTime $lastActive): self
+    {
+        $this->lastActive = $lastActive;
+
+        return $this;
+    }
+
+    /**
+     * @return \DateTime|null
+     */
+    public function getLastActive(): ?\DateTime
+    {
+        return $this->lastActive;
     }
 }
